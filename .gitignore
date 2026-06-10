@@ -1,0 +1,23 @@
+# Python Cache & Bytecode
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Virtual Environments
+.venv/
+venv/
+ENV/
+
+# Local MLflow Database & Artifact Runs
+mlruns/
+mlflow.db
+.mlflow/
+
+# OS Specific
+.DS_Store
+
+# IDE & Editor Settings
+.vscode/
+.idea/
+*.swp
+*.swo
