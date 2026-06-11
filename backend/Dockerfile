@@ -1,21 +1,30 @@
 FROM python:3.11-slim
 
-ENV PIP_DEFAULT_TIMEOUT=200
+ENV PYTHONUNBUFFERED=1
+ENV PIP_DEFAULT_TIMEOUT=300
 
 WORKDIR /app
 
-# Install uv, then use it to install project dependencies
-COPY pyproject.toml .
-RUN pip install --no-cache-dir uv && \
-    uv pip install --system --no-cache --index-url https://download.pytorch.org/whl/cpu torch && \
-    uv pip install --system --no-cache -r pyproject.toml
+# Install CPU-only torch first (much smaller than default)
+RUN pip install --no-cache-dir \
+    torch --index-url https://download.pytorch.org/whl/cpu
 
-# Copy application source
+# Install everything else
+RUN pip install --no-cache-dir \
+    fastapi \
+    "uvicorn[standard]" \
+    scikit-learn \
+    pandas \
+    numpy \
+    joblib \
+    mlflow \
+    python-multipart \
+    "pydantic-settings>=2.0.0"
+
+
+
 COPY app/ ./app/
-
-# Model artifacts are expected at /app/model (bind-mounted or COPY'd)
-# COPY ../model/ ./model/   # uncomment if not using a volume mount
 
 EXPOSE 8000
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

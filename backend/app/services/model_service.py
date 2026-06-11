@@ -7,9 +7,6 @@ import numpy as np
 from pathlib import Path
 
 MODEL_DIR = Path("/app/model")
-if not MODEL_DIR.exists():
-    # Fallback to local workspace model directory
-    MODEL_DIR = Path(__file__).resolve().parents[3] / "model"
 
 
 class DeepMLP(nn.Module):

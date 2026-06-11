@@ -1,0 +1,61 @@
+@import "tailwindcss";
+
+@theme inline {
+  --color-apple-bg: #f5f5f7;
+  --color-apple-card: #ffffff;
+  --color-apple-primary: #1d1d1f;
+  --color-apple-secondary: #6e6e73;
+  --color-apple-accent: #0071e3;
+  --color-apple-accent-hover: #0077ed;
+  --color-apple-border: #d2d2d7;
+
+  --color-risk-low-bg: #f0faf0;
+  --color-risk-low-text: #1a7f37;
+  --color-risk-med-bg: #fff8f0;
+  --color-risk-med-text: #b45309;
+  --color-risk-high-bg: #fff0f0;
+  --color-risk-high-text: #cf222e;
+
+  --shadow-card: 0 2px 20px rgba(0, 0, 0, 0.06);
+
+  --radius-card: 16px;
+  --radius-input: 12px;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI",
+    sans-serif;
+  background-color: #f5f5f7;
+  color: #1d1d1f;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+@keyframes pulse-skeleton {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.4;
+  }
+}
+
+.skeleton {
+  background-color: #e8e8ed;
+  border-radius: 8px;
+  animation: pulse-skeleton 1.5s ease-in-out infinite;
+}

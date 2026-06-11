@@ -33,7 +33,16 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
-      - ./model:/app/model:ro
+      - ./model:/app/model   # mounts your local model/ folder into the container
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "3000:3000"
+    depends_on:
+      - backend
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8000
 
 volumes:
   postgres_data:
