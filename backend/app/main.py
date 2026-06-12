@@ -21,5 +21,5 @@ app.include_router(experiments.router)
 
 
 @app.get("/health")
-def health() -> dict:
+async def health() -> dict:
     return {"status": "ok", "model_loaded": True}

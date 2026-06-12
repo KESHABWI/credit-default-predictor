@@ -8,23 +8,34 @@ router = APIRouter(tags=["experiments"])
 
 
 @router.get("/api/experiments")
-def list_experiments() -> list[dict]:
-    return mlflow_service.get_all_experiments()
+async def get_experiments() -> list[dict]:
+    try:
+        return mlflow_service.get_all_experiments()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/api/experiments/{experiment_name}/runs", response_model=ExperimentSummary)
-def get_experiment_runs(experiment_name: str) -> ExperimentSummary:
+async def get_experiment_runs(experiment_name: str) -> ExperimentSummary:
     try:
         return mlflow_service.get_experiment_runs(experiment_name)
     except ValueError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/api/experiments/runs/{run_id}/metrics/{metric_name}")
-def get_metric_history(run_id: str, metric_name: str) -> list[dict]:
-    return mlflow_service.get_run_metric_history(run_id, metric_name)
+async def get_metric_history(run_id: str, metric_name: str) -> list[dict]:
+    try:
+        return mlflow_service.get_run_metric_history(run_id, metric_name)
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
 
 
 @router.get("/api/model/info")
-def get_model_info() -> dict:
-    return model_service.get_model_info()
+async def get_model_info() -> dict:
+    try:
+        return model_service.get_model_info()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc)) from exc
