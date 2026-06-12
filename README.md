@@ -51,7 +51,13 @@ credit-default-predictor/
 | MLflow   | `http://localhost:5001`      |
 | API Docs | `http://localhost:8000/docs` |
 
+### 🌐 Exposing MLflow (Localtunnel)
+
+To expose the local MLflow tracking UI externally (useful for sharing experiment logs or accessing the UI from other networks), you can run:
+
+```bash
 npx localtunnel --port 5001 --local-host localhost
+```
 
 ## 🏗️ Architecture
 
