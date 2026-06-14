@@ -234,7 +234,13 @@ const pipelineSteps = [
 
 interface CorrelationTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: {
+    payload: {
+      feature: string;
+      correlation: number;
+      type: string;
+    };
+  }[];
 }
 
 function CorrelationTooltip({ active, payload }: CorrelationTooltipProps) {
@@ -263,7 +269,9 @@ function CorrelationTooltip({ active, payload }: CorrelationTooltipProps) {
 
 interface DemographicsTooltipProps {
   active?: boolean;
-  payload?: any[];
+  payload?: {
+    value: number;
+  }[];
   label?: string;
 }
 
@@ -360,7 +368,7 @@ export default function EdaPage() {
                     <Cell fill="#34c759" />
                     <Cell fill="#cf222e" />
                   </Pie>
-                  <Tooltip formatter={(value: any) => [`${value.toLocaleString()} clients`, "Count"]} />
+                  <Tooltip formatter={(value) => value !== undefined ? [`${Number(value).toLocaleString()} clients`, "Count"] : ["", ""]} />
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-col items-center justify-center pointer-events-none">
