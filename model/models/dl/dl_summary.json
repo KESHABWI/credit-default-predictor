@@ -1,0 +1,23 @@
+{
+  "architecture": "AttentionNet",
+  "n_features": 38,
+  "total_params": 1210261,
+  "best_threshold": 0.5399999999999999,
+  "test_accuracy": 0.7846,
+  "test_precision": 0.513,
+  "test_recall": 0.5204,
+  "test_f1": 0.5167,
+  "test_roc_auc": 0.7528,
+  "mlflow_run_id": "e3c9fb47238d4a6592bc37a83e58d20a",
+  "best_optuna_params": {
+    "arch": "AttentionNet",
+    "attn_hidden_dim": 512,
+    "attn_blocks": 2,
+    "attn_dropout": 0.2641531692142519,
+    "lr": 0.0019215811115723025,
+    "weight_decay": 8.22607494622104e-06,
+    "focal_alpha": 0.5307919639315172,
+    "focal_gamma": 1.869254358741304,
+    "scheduler": "cosine"
+  }
+}

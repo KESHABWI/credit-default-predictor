@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, Fragment } from "react";
 import {
   BarChart,
   Bar,
@@ -702,7 +702,7 @@ export default function EdaPage() {
               {qualityIssues.map((item, index) => {
                 const isExpanded = expandedIssue === index;
                 return (
-                  <tr key={index} className="contents">
+                  <Fragment key={index}>
                     <tr
                       onClick={() => setExpandedIssue(isExpanded ? null : index)}
                       className="hover:bg-[#f5f5f7] cursor-pointer transition-colors duration-200 border-b border-[#d2d2d7]/30"
@@ -726,7 +726,7 @@ export default function EdaPage() {
                         </td>
                       </tr>
                     )}
-                  </tr>
+                  </Fragment>
                 );
               })}
             </tbody>

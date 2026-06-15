@@ -1,0 +1,13 @@
+{
+  "best_model": "SimpleMLP",
+  "stage": "tuned",
+  "threshold": 0.55,
+  "fbeta2": 0.6233,
+  "f1": 0.4452,
+  "recall": 0.8499,
+  "precision": 0.3016,
+  "accuracy": 0.5313,
+  "roc_auc": 0.7666,
+  "mlflow_run_id": "06f57beab9df409ab333db97c1e1d8df",
+  "model_path": "/content/drive/MyDrive/ml_projects/credit_card_default_v1/models/dl/BEST_MODEL_SimpleMLP.pt"
+}

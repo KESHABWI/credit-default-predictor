@@ -5,6 +5,9 @@ ENV PIP_DEFAULT_TIMEOUT=300
 
 WORKDIR /app
 
+# Install libgomp1 for LightGBM
+RUN apt-get update && apt-get install -y --no-install-recommends libgomp1 && rm -rf /var/lib/apt/lists/*
+
 # Install CPU-only torch first (much smaller than default)
 RUN pip install --no-cache-dir \
     torch --index-url https://download.pytorch.org/whl/cpu
@@ -19,7 +22,10 @@ RUN pip install --no-cache-dir \
     joblib \
     mlflow \
     python-multipart \
-    "pydantic-settings>=2.0.0"
+    "pydantic-settings>=2.0.0" \
+    lightgbm \
+    xgboost \
+    catboost
 
 
 

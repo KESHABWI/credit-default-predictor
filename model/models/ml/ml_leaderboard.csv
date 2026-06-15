@@ -1,0 +1,6 @@
+Model,Accuracy,Precision,Recall,F1,ROC-AUC,Threshold
+XGBoost,0.325,0.2429,0.9683,0.3883,0.77,0.3
+LogisticRegression,0.3556,0.2475,0.9374,0.3916,0.7469,0.3
+RandomForest,0.6037,0.3347,0.8009,0.4721,0.7722,0.3
+CatBoost,0.6679,0.3704,0.7157,0.4882,0.7737,0.3
+LightGBM,0.6851,0.3843,0.7029,0.4969,0.769,0.3

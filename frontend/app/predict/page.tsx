@@ -1,10 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Zap } from "lucide-react";
 import PageHeader from "@/components/PageHeader";
 import RiskBadge from "@/components/RiskBadge";
-import { predictDefault, PredictResponse } from "@/lib/api";
+import {
+  predictDefault,
+  fetchModelInfo,
+  fetchModels,
+  PredictResponse,
+  ModelRegistryEntry,
+} from "@/lib/api";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -22,6 +28,47 @@ const PAY_OPTIONS = [
   { value: "8",  label: "8 — 8 months delay" },
 ];
 
+const FEATURE_DESCRIPTIONS: Record<string, string> = {
+  max_consec_delay: "Longest consecutive payment delay",
+  avg_pay_delay:    "Average monthly payment delay",
+  PAY_0:            "Most recent payment status (Sep)",
+  LIMIT_BAL:        "Credit limit — higher = lower risk",
+  EDUCATION:        "Education level",
+  AGE:              "Client age",
+  zero_pay_months:  "Months with zero payment",
+  util_rate:        "Credit utilization rate",
+  total_payment:    "Total payments over 6 months",
+  SEX:              "Gender",
+  PAY_2:            "August payment status",
+};
+
+const PAY_STATUS_FIELDS = [
+  { key: "PAY_0" as const, label: "PAY_0", month: "Sep", badge: "🔴 Critical", highlight: true },
+  { key: "PAY_2" as const, label: "PAY_2", month: "Aug", badge: "🔴 Critical", highlight: true },
+  { key: "PAY_3" as const, label: "PAY_3", month: "Jul", badge: "🟠 High",     highlight: false },
+  { key: "PAY_4" as const, label: "PAY_4", month: "Jun", badge: "🟠 High",     highlight: false },
+  { key: "PAY_5" as const, label: "PAY_5", month: "May", badge: "🟡 Medium",   highlight: false },
+  { key: "PAY_6" as const, label: "PAY_6", month: "Apr", badge: "🟡 Medium",   highlight: false },
+];
+
+const BILL_FIELDS = [
+  { key: "BILL_AMT1" as const, month: "Sep (most recent)", note: "Most recent — highest weight" },
+  { key: "BILL_AMT2" as const, month: "Aug" },
+  { key: "BILL_AMT3" as const, month: "Jul" },
+  { key: "BILL_AMT4" as const, month: "Jun" },
+  { key: "BILL_AMT5" as const, month: "May" },
+  { key: "BILL_AMT6" as const, month: "Apr" },
+];
+
+const PAY_AMT_FIELDS = [
+  { key: "PAY_AMT1" as const, month: "Sep (most recent)" },
+  { key: "PAY_AMT2" as const, month: "Aug" },
+  { key: "PAY_AMT3" as const, month: "Jul" },
+  { key: "PAY_AMT4" as const, month: "Jun" },
+  { key: "PAY_AMT5" as const, month: "May" },
+  { key: "PAY_AMT6" as const, month: "Apr" },
+];
+
 const initialFormData = {
   LIMIT_BAL: "", SEX: "2", EDUCATION: "2", MARRIAGE: "2", AGE: "",
   PAY_0: "-1", PAY_2: "-1", PAY_3: "-1", PAY_4: "-1", PAY_5: "-1", PAY_6: "-1",
@@ -31,97 +78,23 @@ const initialFormData = {
 
 type FormData = typeof initialFormData;
 
-const payStatusFields: {
-  key: keyof FormData;
-  label: string;
-  month: string;
-  badgeText: string;
-  badgeBg: string;
-  badgeColor: string;
-  badgeBorder: string;
-  highlight: boolean;
-}[] = [
-  {
-    key: "PAY_0", label: "PAY_0", month: "Sep",
-    badgeText: "🔴 Critical", badgeBg: "#fff0f0", badgeColor: "#cf222e", badgeBorder: "#ffc0c0",
-    highlight: true,
-  },
-  {
-    key: "PAY_2", label: "PAY_2", month: "Aug",
-    badgeText: "🔴 Critical", badgeBg: "#fff0f0", badgeColor: "#cf222e", badgeBorder: "#ffc0c0",
-    highlight: true,
-  },
-  {
-    key: "PAY_3", label: "PAY_3", month: "Jul",
-    badgeText: "🟠 High", badgeBg: "#fff8f0", badgeColor: "#b45309", badgeBorder: "#fcd9b0",
-    highlight: false,
-  },
-  {
-    key: "PAY_4", label: "PAY_4", month: "Jun",
-    badgeText: "🟠 High", badgeBg: "#fff8f0", badgeColor: "#b45309", badgeBorder: "#fcd9b0",
-    highlight: false,
-  },
-  {
-    key: "PAY_5", label: "PAY_5", month: "May",
-    badgeText: "🟡 Medium", badgeBg: "#fffdf0", badgeColor: "#92680a", badgeBorder: "#fce588",
-    highlight: false,
-  },
-  {
-    key: "PAY_6", label: "PAY_6", month: "Apr",
-    badgeText: "🟡 Medium", badgeBg: "#fffdf0", badgeColor: "#92680a", badgeBorder: "#fce588",
-    highlight: false,
-  },
-];
-
-const billAmtFields: { key: keyof FormData; month: string; note?: string }[] = [
-  { key: "BILL_AMT1", month: "Sep (most recent)", note: "Most recent — highest weight" },
-  { key: "BILL_AMT2", month: "Aug" },
-  { key: "BILL_AMT3", month: "Jul" },
-  { key: "BILL_AMT4", month: "Jun" },
-  { key: "BILL_AMT5", month: "May" },
-  { key: "BILL_AMT6", month: "Apr" },
-];
-
-const payAmtFields: { key: keyof FormData; month: string }[] = [
-  { key: "PAY_AMT1", month: "Sep (most recent)" },
-  { key: "PAY_AMT2", month: "Aug" },
-  { key: "PAY_AMT3", month: "Jul" },
-  { key: "PAY_AMT4", month: "Jun" },
-  { key: "PAY_AMT5", month: "May" },
-  { key: "PAY_AMT6", month: "Apr" },
-];
-
-const topFeatures = [
-  { label: "PAY_0", description: "Most recent payment delay — highest weight" },
-  { label: "PAY_2", description: "Second month payment status" },
-  { label: "PAY_3", description: "Third month payment status" },
-];
-
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function probabilityColor(probability: number): string {
-  if (probability < 0.3) return "#1a7f37";
-  if (probability < 0.6) return "#b45309";
+function probabilityColor(p: number): string {
+  if (p < 0.3) return "#1a7f37";
+  if (p <= 0.6) return "#b45309";
   return "#cf222e";
+}
+
+function fmt(val: number | null, decimals = 3): string {
+  return val !== null ? val.toFixed(decimals) : "—";
 }
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
 
 function FieldLabel({ children }: { children: React.ReactNode }) {
   return (
-    <label
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "6px",
-        fontSize: "11px",
-        fontWeight: 600,
-        color: "#6e6e73",
-        marginBottom: "7px",
-        textTransform: "uppercase" as const,
-        letterSpacing: "0.06em",
-      }}
-    >
+    <label className="flex items-center gap-1.5 text-[11px] font-semibold text-[#6e6e73] mb-1.5 uppercase tracking-[0.06em]">
       {children}
     </label>
   );
@@ -129,26 +102,18 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 
 function ImpactBadge({
   text,
-  bg,
-  color,
+  variant = "gray",
 }: {
   text: string;
-  bg: string;
-  color: string;
+  variant?: "red" | "amber" | "gray";
 }) {
+  const styles = {
+    red:   "bg-red-50 text-red-700 border border-red-200",
+    amber: "bg-amber-50 text-amber-700 border border-amber-200",
+    gray:  "bg-[#f5f5f7] text-[#6e6e73]",
+  };
   return (
-    <span
-      style={{
-        fontSize: "10px",
-        fontWeight: 600,
-        backgroundColor: bg,
-        color,
-        padding: "2px 7px",
-        borderRadius: "999px",
-        letterSpacing: "0.02em",
-        textTransform: "none" as const,
-      }}
-    >
+    <span className={`text-[10px] font-semibold px-2 py-0.5 rounded-full ${styles[variant]}`}>
       {text}
     </span>
   );
@@ -169,29 +134,16 @@ function NumberField({
   max?: number;
   onChange: (key: string, val: string) => void;
 }) {
-  const [focused, setFocused] = useState(false);
   return (
     <input
+      id={`field-${fieldKey}`}
       type="number"
       placeholder={placeholder}
       value={value}
       min={min}
       max={max}
       onChange={(e) => onChange(fieldKey, e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={{
-        width: "100%",
-        padding: "10px 14px",
-        fontSize: "14px",
-        color: "#1d1d1f",
-        backgroundColor: "#f5f5f7",
-        border: `1px solid ${focused ? "#0071e3" : "#d2d2d7"}`,
-        borderRadius: "10px",
-        outline: "none",
-        transition: "border-color 0.2s ease",
-        boxSizing: "border-box" as const,
-      }}
+      className="w-full px-3.5 py-2.5 text-sm text-[#1d1d1f] bg-[#f5f5f7] border border-[#d2d2d7] rounded-[10px] outline-none focus:border-[#0071e3] focus:bg-white transition-colors duration-200 box-border"
     />
   );
 }
@@ -209,120 +161,129 @@ function SelectField({
   highlight?: boolean;
   onChange: (key: string, val: string) => void;
 }) {
-  const [focused, setFocused] = useState(false);
   return (
     <select
+      id={`field-${fieldKey}`}
       value={value}
       onChange={(e) => onChange(fieldKey, e.target.value)}
-      onFocus={() => setFocused(true)}
-      onBlur={() => setFocused(false)}
-      style={{
-        width: "100%",
-        padding: "10px 14px",
-        fontSize: "14px",
-        color: "#1d1d1f",
-        backgroundColor: highlight ? "#fafcff" : "#f5f5f7",
-        border: `1px solid ${focused ? "#0071e3" : highlight ? "#0071e3" : "#d2d2d7"}`,
-        borderLeft: highlight ? "2px solid #0071e3" : `1px solid ${focused ? "#0071e3" : "#d2d2d7"}`,
-        borderRadius: "10px",
-        outline: "none",
-        cursor: "pointer",
-        transition: "border-color 0.2s ease",
-        boxSizing: "border-box" as const,
-        appearance: "auto" as const,
-      }}
+      className={[
+        "w-full px-3.5 py-2.5 text-sm text-[#1d1d1f] rounded-[10px] outline-none cursor-pointer transition-colors duration-200 box-border",
+        highlight
+          ? "bg-[#fafcff] border-2 border-l-[3px] border-[#0071e3]"
+          : "bg-[#f5f5f7] border border-[#d2d2d7] focus:border-[#0071e3] focus:bg-white",
+      ].join(" ")}
     >
-      {options.map((option) => (
-        <option key={option.value} value={option.value}>
-          {option.label}
+      {options.map((opt) => (
+        <option key={opt.value} value={opt.value}>
+          {opt.label}
         </option>
       ))}
     </select>
   );
 }
 
-function SectionCard({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div
-      style={{
-        backgroundColor: "#ffffff",
-        borderRadius: "16px",
-        padding: "24px 28px",
-        boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
-        border: "1px solid #d2d2d7",
-        marginBottom: "16px",
-      }}
-    >
+    <div className="bg-white rounded-2xl px-7 py-6 shadow-[0_2px_20px_rgba(0,0,0,0.06)] border border-[#d2d2d7] mb-4">
       {children}
     </div>
   );
 }
 
-function SectionHeader({
-  label,
-  badge,
-}: {
-  label: string;
-  badge?: React.ReactNode;
-}) {
+function SectionHeader({ label, badge }: { label: string; badge?: React.ReactNode }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "10px",
-        marginBottom: "18px",
-      }}
-    >
-      <span
-        style={{
-          fontSize: "11px",
-          fontWeight: 700,
-          color: "#6e6e73",
-          textTransform: "uppercase" as const,
-          letterSpacing: "0.1em",
-        }}
-      >
-        {label}
-      </span>
+    <div className="flex items-center gap-2.5 mb-4">
+      <span className="text-[11px] font-bold text-[#6e6e73] uppercase tracking-[0.1em]">{label}</span>
       {badge}
     </div>
   );
 }
 
-function DetailRow({
-  label,
-  value,
-  valueColor,
-}: {
-  label: string;
-  value: string;
-  valueColor?: string;
-}) {
+function DetailRow({ label, value, valueColor }: { label: string; value: string; valueColor?: string }) {
   return (
-    <div
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        padding: "11px 0",
-        borderBottom: "1px dotted #e8e8ed",
-      }}
-    >
-      <span style={{ fontSize: "13px", color: "#6e6e73" }}>{label}</span>
-      <span
-        style={{
-          fontSize: "13px",
-          fontWeight: 600,
-          color: valueColor ?? "#1d1d1f",
-        }}
-      >
+    <div className="flex justify-between items-center py-2.5 border-b border-dotted border-[#e8e8ed] last:border-b-0">
+      <span className="text-[13px] text-[#6e6e73]">{label}</span>
+      <span className="text-[13px] font-semibold" style={{ color: valueColor ?? "#1d1d1f" }}>
         {value}
       </span>
+    </div>
+  );
+}
+
+// ─── Model Selector ───────────────────────────────────────────────────────────
+
+const MODEL_ORDER = [
+  "simple_mlp", "complex_mlp",
+  "lightgbm", "xgboost", "catboost", "random_forest", "logistic",
+];
+
+function ModelSelector({
+  registry,
+  loading,
+  selected,
+  onSelect,
+}: {
+  registry: Record<string, ModelRegistryEntry>;
+  loading: boolean;
+  selected: string;
+  onSelect: (key: string) => void;
+}) {
+  const ordered = MODEL_ORDER.filter((k) => k in registry && registry[k].loaded);
+
+  const isDL = (key: string) => registry[key]?.type === "Deep Learning";
+
+  if (loading) {
+    return (
+      <div className="flex flex-wrap gap-2 animate-pulse">
+        {Array.from({ length: 5 }).map((_, i) => (
+          <div key={i} className="h-9 w-28 rounded-xl bg-[#d2d2d7]" />
+        ))}
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex flex-wrap gap-2">
+      {ordered.map((key) => {
+        const entry = registry[key];
+        const active = key === selected;
+        const dl = isDL(key);
+        return (
+          <button
+            key={key}
+            type="button"
+            id={`model-btn-${key}`}
+            onClick={() => onSelect(key)}
+            className={[
+              "flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-[13px] font-medium border transition-all duration-200 cursor-pointer",
+              active
+                ? dl
+                  ? "bg-[#0071e3] text-white border-[#0071e3] shadow-md"
+                  : "bg-[#1d1d1f] text-white border-[#1d1d1f] shadow-md"
+                : "bg-white text-[#1d1d1f] border-[#d2d2d7] hover:border-[#0071e3] hover:text-[#0071e3]",
+            ].join(" ")}
+          >
+            <span
+              className={[
+                "text-[9px] font-bold px-1.5 py-0.5 rounded-full",
+                active
+                  ? "bg-white/20 text-white"
+                  : dl
+                  ? "bg-[#e8f0fe] text-[#0071e3]"
+                  : "bg-[#f0f7ef] text-[#1a7f37]",
+              ].join(" ")}
+            >
+              {dl ? "DL" : "ML"}
+            </span>
+            {entry.display_name}
+            {entry.metrics.roc_auc !== null && (
+              <span className={`text-[10px] opacity-70`}>
+                {entry.metrics.roc_auc.toFixed(3)}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -331,39 +292,60 @@ function DetailRow({
 
 export default function PredictPage() {
   const [formData, setFormData] = useState<FormData>(initialFormData);
+  const [selectedModel, setSelectedModel] = useState("simple_mlp");
   const [result, setResult] = useState<PredictResponse | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
   const [resultVisible, setResultVisible] = useState(false);
 
+  const [topFeatures, setTopFeatures] = useState<string[]>([]);
+  const [modelRegistry, setModelRegistry] = useState<Record<string, ModelRegistryEntry>>({});
+  const [registryLoading, setRegistryLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetchModelInfo().then((info) => setTopFeatures(info.top_features.slice(0, 5))).catch(() => {}),
+      fetchModels()
+        .then((reg) => setModelRegistry(reg))
+        .catch(() => {}),
+    ]).finally(() => setRegistryLoading(false));
+  }, []);
+
   function handleChange(key: string, value: string) {
-    setFormData((previous) => ({ ...previous, [key]: value }));
+    setFormData((prev) => ({ ...prev, [key]: value }));
   }
 
   async function handleSubmit(event: React.FormEvent) {
     event.preventDefault();
+    setValidationError(null);
+
+    if (!formData.LIMIT_BAL || !formData.AGE) {
+      setValidationError("Please fill in Credit Limit and Age before predicting.");
+      return;
+    }
+
     setLoading(true);
-    setError(null);
     setResultVisible(false);
     setResult(null);
 
     try {
       const numericPayload: Record<string, number> = {};
       for (const [key, value] of Object.entries(formData)) {
-        numericPayload[key] = Number(value);
+        numericPayload[key] = value === "" ? 0 : Number(value);
       }
-      const response = await predictDefault(numericPayload);
+      const response = await predictDefault(numericPayload, selectedModel);
       setResult(response);
-      // Tiny delay so the opacity transition is visible
       requestAnimationFrame(() => {
         requestAnimationFrame(() => setResultVisible(true));
       });
     } catch {
-      setError("Prediction failed. Make sure all fields are filled in correctly.");
+      setValidationError("Prediction failed. Check that all fields are filled in correctly.");
     } finally {
       setLoading(false);
     }
   }
+
+  const activeEntry = modelRegistry[selectedModel];
 
   return (
     <div>
@@ -372,83 +354,82 @@ export default function PredictPage() {
         subtitle="Enter client details to predict default probability"
       />
 
-      <div style={{ display: "flex", gap: "24px", alignItems: "flex-start" }}>
-        {/* ────────────────── Left Column (58%) ────────────────── */}
-        <div style={{ flex: "0 0 58%" }}>
+      <div className="flex gap-6 items-start">
+        {/* ── Left column (58%) ── */}
+        <div className="flex-[0_0_58%]">
           <form onSubmit={handleSubmit}>
 
-            {/* ── Important Feature Banner ── */}
-            <div
-              style={{
-                backgroundColor: "#f0f7ff",
-                border: "1px solid #b3d4f5",
-                borderRadius: "12px",
-                padding: "12px 16px",
-                marginBottom: "16px",
-                display: "flex",
-                alignItems: "flex-start",
-                gap: "10px",
-              }}
-            >
-              <Zap size={15} color="#0071e3" style={{ flexShrink: 0, marginTop: "1px" }} />
-              <p style={{ fontSize: "13px", color: "#0071e3", margin: 0, lineHeight: 1.5 }}>
-                <strong>PAY_0, PAY_2, PAY_3</strong> have the highest impact on prediction.
-                Fill payment status carefully.
+            {/* ── Model Selector card ── */}
+            <SectionCard>
+              <SectionHeader label="Select Model" />
+              <ModelSelector
+                registry={modelRegistry}
+                loading={registryLoading}
+                selected={selectedModel}
+                onSelect={setSelectedModel}
+              />
+
+              {/* Selected model metrics row */}
+              {activeEntry && (
+                <div className="flex items-center gap-4 mt-4 pt-4 border-t border-[#f0f0f0]">
+                  <span className={[
+                    "text-[11px] font-bold px-2 py-0.5 rounded-full",
+                    activeEntry.type === "Deep Learning"
+                      ? "bg-[#e8f0fe] text-[#0071e3]"
+                      : "bg-[#f0f7ef] text-[#1a7f37]",
+                  ].join(" ")}>
+                    {activeEntry.type}
+                  </span>
+                  <span className="text-[12px] text-[#6e6e73]">
+                    Threshold: <strong className="text-[#1d1d1f]">{activeEntry.threshold}</strong>
+                  </span>
+                  {activeEntry.metrics.roc_auc !== null && (
+                    <span className="text-[12px] text-[#6e6e73]">
+                      ROC-AUC: <strong className="text-[#1d1d1f]">{fmt(activeEntry.metrics.roc_auc)}</strong>
+                    </span>
+                  )}
+                  {activeEntry.metrics.recall !== null && (
+                    <span className="text-[12px] text-[#6e6e73]">
+                      Recall: <strong className="text-[#1d1d1f]">{fmt(activeEntry.metrics.recall)}</strong>
+                    </span>
+                  )}
+                  {activeEntry.metrics.f1 !== null && (
+                    <span className="text-[12px] text-[#6e6e73]">
+                      F1: <strong className="text-[#1d1d1f]">{fmt(activeEntry.metrics.f1)}</strong>
+                    </span>
+                  )}
+                </div>
+              )}
+            </SectionCard>
+
+            {/* Info banner */}
+            <div className="flex items-start gap-2.5 bg-[#f0f7ff] border border-[#b3d4f5] rounded-xl px-4 py-3 mb-4">
+              <Zap size={15} className="text-[#0071e3] shrink-0 mt-0.5" />
+              <p className="text-[13px] text-[#0071e3] m-0 leading-relaxed">
+                <strong>max_consec_delay, avg_pay_delay, PAY_0</strong> are the strongest predictors.
+                Payment history matters most.
               </p>
             </div>
 
             {/* ── Client Profile ── */}
             <SectionCard>
               <SectionHeader label="Client Profile" />
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "16px",
-                }}
-              >
-                {/* Credit Limit */}
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <FieldLabel>
                     Credit Limit
-                    <ImpactBadge text="Moderate Impact" bg="#fff8f0" color="#b45309" />
+                    <ImpactBadge text="Moderate Impact" variant="amber" />
                   </FieldLabel>
-                  <NumberField
-                    fieldKey="LIMIT_BAL"
-                    placeholder="e.g. 200,000"
-                    value={formData.LIMIT_BAL}
-                    onChange={handleChange}
-                  />
+                  <NumberField fieldKey="LIMIT_BAL" placeholder="e.g. 200,000" value={formData.LIMIT_BAL} min={0} onChange={handleChange} />
                 </div>
-
-                {/* Sex */}
                 <div>
                   <FieldLabel>Sex</FieldLabel>
-                  <SelectField
-                    fieldKey="SEX"
-                    options={[
-                      { value: "1", label: "1 — Male" },
-                      { value: "2", label: "2 — Female" },
-                    ]}
-                    value={formData.SEX}
-                    onChange={handleChange}
-                  />
+                  <SelectField fieldKey="SEX" options={[{ value: "1", label: "1 — Male" }, { value: "2", label: "2 — Female" }]} value={formData.SEX} onChange={handleChange} />
                 </div>
-
-                {/* Age */}
                 <div>
                   <FieldLabel>Age</FieldLabel>
-                  <NumberField
-                    fieldKey="AGE"
-                    placeholder="e.g. 35"
-                    value={formData.AGE}
-                    min={21}
-                    max={79}
-                    onChange={handleChange}
-                  />
+                  <NumberField fieldKey="AGE" placeholder="e.g. 35" value={formData.AGE} min={21} max={79} onChange={handleChange} />
                 </div>
-
-                {/* Education */}
                 <div>
                   <FieldLabel>Education</FieldLabel>
                   <SelectField
@@ -458,22 +439,18 @@ export default function PredictPage() {
                       { value: "2", label: "2 — University" },
                       { value: "3", label: "3 — High School" },
                       { value: "4", label: "4 — Other" },
+                      { value: "5", label: "5 — Unknown" },
+                      { value: "6", label: "6 — Unknown" },
                     ]}
                     value={formData.EDUCATION}
                     onChange={handleChange}
                   />
                 </div>
-
-                {/* Marriage — full width */}
-                <div style={{ gridColumn: "1 / -1" }}>
+                <div className="col-span-2">
                   <FieldLabel>Marital Status</FieldLabel>
                   <SelectField
                     fieldKey="MARRIAGE"
-                    options={[
-                      { value: "1", label: "1 — Married" },
-                      { value: "2", label: "2 — Single" },
-                      { value: "3", label: "3 — Other" },
-                    ]}
+                    options={[{ value: "1", label: "1 — Married" }, { value: "2", label: "2 — Single" }, { value: "3", label: "3 — Other" }]}
                     value={formData.MARRIAGE}
                     onChange={handleChange}
                   />
@@ -485,56 +462,19 @@ export default function PredictPage() {
             <SectionCard>
               <SectionHeader
                 label="Payment Status"
-                badge={
-                  <span
-                    style={{
-                      fontSize: "11px",
-                      fontWeight: 600,
-                      backgroundColor: "#fff0f0",
-                      color: "#cf222e",
-                      border: "1px solid #ffc0c0",
-                      padding: "2px 8px",
-                      borderRadius: "999px",
-                    }}
-                  >
-                    Highest Impact
-                  </span>
-                }
+                badge={<span className="text-[11px] font-semibold bg-red-50 text-red-700 border border-red-200 px-2 py-0.5 rounded-full">Highest Impact</span>}
               />
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#6e6e73",
-                  margin: "-10px 0 18px 0",
-                  lineHeight: 1.5,
-                }}
-              >
-                Payment delays are the strongest predictor of default. PAY_0 is the most recent month.
+              <p className="text-[13px] text-[#6e6e73] -mt-2 mb-4 leading-relaxed">
+                Payment delays are the strongest predictor. PAY_0 is most recent month (September).
               </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "16px",
-                }}
-              >
-                {payStatusFields.map((field) => (
+              <div className="grid grid-cols-3 gap-4">
+                {PAY_STATUS_FIELDS.map((field) => (
                   <div key={field.key}>
                     <FieldLabel>
                       {field.label} — {field.month}
-                      <ImpactBadge
-                        text={field.badgeText}
-                        bg={field.badgeBg}
-                        color={field.badgeColor}
-                      />
+                      <span className="text-[10px] font-semibold">{field.badge}</span>
                     </FieldLabel>
-                    <SelectField
-                      fieldKey={field.key}
-                      options={PAY_OPTIONS}
-                      value={formData[field.key]}
-                      highlight={field.highlight}
-                      onChange={handleChange}
-                    />
+                    <SelectField fieldKey={field.key} options={PAY_OPTIONS} value={formData[field.key]} highlight={field.highlight} onChange={handleChange} />
                   </div>
                 ))}
               </div>
@@ -542,50 +482,16 @@ export default function PredictPage() {
 
             {/* ── Bill Amounts ── */}
             <SectionCard>
-              <SectionHeader
-                label="Bill Amounts"
-                badge={
-                  <ImpactBadge text="Low–Moderate Impact" bg="#f5f5f7" color="#6e6e73" />
-                }
-              />
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#6e6e73",
-                  margin: "-10px 0 18px 0",
-                  lineHeight: 1.5,
-                }}
-              >
-                Monthly statement balances over 6 months. Shows debt accumulation trend.
+              <SectionHeader label="Bill Amounts" badge={<ImpactBadge text="Low–Moderate Impact" />} />
+              <p className="text-[13px] text-[#6e6e73] -mt-2 mb-4 leading-relaxed">
+                Monthly statement balances. Shows debt accumulation trend.
               </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "16px",
-                }}
-              >
-                {billAmtFields.map((field) => (
+              <div className="grid grid-cols-3 gap-4">
+                {BILL_FIELDS.map((field) => (
                   <div key={field.key}>
                     <FieldLabel>{field.month}</FieldLabel>
-                    <NumberField
-                      fieldKey={field.key}
-                      placeholder="e.g. 50,000"
-                      value={formData[field.key]}
-                      onChange={handleChange}
-                    />
-                    {field.note && (
-                      <p
-                        style={{
-                          fontSize: "11px",
-                          color: "#0071e3",
-                          margin: "5px 0 0 0",
-                          fontWeight: 500,
-                        }}
-                      >
-                        {field.note}
-                      </p>
-                    )}
+                    <NumberField fieldKey={field.key} placeholder="e.g. 50,000" value={formData[field.key]} onChange={handleChange} />
+                    {field.note && <p className="text-[11px] text-[#0071e3] font-medium mt-1">{field.note}</p>}
                   </div>
                 ))}
               </div>
@@ -593,68 +499,30 @@ export default function PredictPage() {
 
             {/* ── Payment Amounts ── */}
             <SectionCard>
-              <SectionHeader
-                label="Payment Amounts"
-                badge={
-                  <ImpactBadge text="Low–Moderate Impact" bg="#f5f5f7" color="#6e6e73" />
-                }
-              />
-              <p
-                style={{
-                  fontSize: "13px",
-                  color: "#6e6e73",
-                  margin: "-10px 0 18px 0",
-                  lineHeight: 1.5,
-                }}
-              >
-                Actual amounts paid each month. Higher payments reduce default risk.
+              <SectionHeader label="Payment Amounts" badge={<ImpactBadge text="Low–Moderate Impact" />} />
+              <p className="text-[13px] text-[#6e6e73] -mt-2 mb-4 leading-relaxed">
+                Actual payments made each month. Higher payments reduce risk.
               </p>
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(3, 1fr)",
-                  gap: "16px",
-                }}
-              >
-                {payAmtFields.map((field) => (
+              <div className="grid grid-cols-3 gap-4">
+                {PAY_AMT_FIELDS.map((field) => (
                   <div key={field.key}>
                     <FieldLabel>{field.month}</FieldLabel>
-                    <NumberField
-                      fieldKey={field.key}
-                      placeholder="e.g. 2,000"
-                      value={formData[field.key]}
-                      onChange={handleChange}
-                    />
+                    <NumberField fieldKey={field.key} placeholder="e.g. 2,000" value={formData[field.key]} onChange={handleChange} />
                   </div>
                 ))}
               </div>
             </SectionCard>
 
-            {/* ── Submit Button ── */}
+            {/* Submit */}
             <button
+              id="predict-submit-btn"
               type="submit"
               disabled={loading}
-              className="predict-submit-btn"
-              style={{
-                width: "100%",
-                height: "48px",
-                backgroundColor: loading ? "#5aa5f5" : "#0071e3",
-                color: "#ffffff",
-                border: "none",
-                borderRadius: "12px",
-                fontSize: "15px",
-                fontWeight: 500,
-                cursor: loading ? "not-allowed" : "pointer",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                gap: "8px",
-                transition: "background-color 0.2s ease",
-              }}
+              className="w-full h-12 bg-[#0071e3] hover:bg-[#0077ed] disabled:bg-[#5aa5f5] disabled:cursor-not-allowed text-white border-none rounded-xl text-[15px] font-medium flex items-center justify-center gap-2 transition-colors duration-200 cursor-pointer"
             >
               {loading ? (
                 <>
-                  <span className="predict-spinner" />
+                  <span className="w-4 h-4 border-2 border-white/35 border-t-white rounded-full animate-spin shrink-0" />
                   Analyzing...
                 </>
               ) : (
@@ -665,249 +533,99 @@ export default function PredictPage() {
               )}
             </button>
 
-            {/* ── Error Banner ── */}
-            {error && (
-              <div
-                style={{
-                  backgroundColor: "#fff0f0",
-                  border: "1px solid #fecdca",
-                  borderRadius: "10px",
-                  padding: "12px 16px",
-                  marginTop: "12px",
-                  fontSize: "13px",
-                  color: "#cf222e",
-                }}
-              >
-                {error}
+            {validationError && (
+              <div className="bg-red-50 border border-red-200 rounded-[10px] px-4 py-3 mt-3 text-[13px] text-red-700">
+                {validationError}
               </div>
             )}
           </form>
         </div>
 
-        {/* ────────────────── Right Column (42%) ────────────────── */}
-        <div
-          style={{
-            flex: "0 0 42%",
-            position: "sticky",
-            top: "96px",
-          }}
-        >
+        {/* ── Right column (42%) ── */}
+        <div className="flex-[0_0_42%] sticky top-24">
           {!result ? (
-            /* Empty state */
-            <div
-              style={{
-                backgroundColor: "#ffffff",
-                borderRadius: "16px",
-                padding: "48px 28px",
-                boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
-                border: "1px solid #d2d2d7",
-                display: "flex",
-                flexDirection: "column",
-                alignItems: "center",
-                textAlign: "center",
-                gap: "14px",
-              }}
-            >
+            <div className="bg-white rounded-2xl border border-[#d2d2d7] shadow-[0_2px_20px_rgba(0,0,0,0.06)] px-7 py-12 flex flex-col items-center text-center gap-3.5">
               <Zap size={40} color="#d2d2d7" />
               <div>
-                <p
-                  style={{
-                    fontSize: "16px",
-                    fontWeight: 600,
-                    color: "#1d1d1f",
-                    margin: "0 0 6px 0",
-                  }}
-                >
-                  Awaiting Input
-                </p>
-                <p style={{ fontSize: "13px", color: "#6e6e73", margin: 0, lineHeight: 1.5 }}>
-                  Fill in the form and click Predict to see the risk assessment
+                <p className="text-base font-semibold text-[#1d1d1f] mb-1.5">Awaiting Input</p>
+                <p className="text-[13px] text-[#6e6e73] leading-relaxed">
+                  Select a model, fill in the form, and click Predict
                 </p>
               </div>
             </div>
           ) : (
-            /* Result card — fades in */
             <div
-              style={{
-                opacity: resultVisible ? 1 : 0,
-                transition: "opacity 0.5s ease",
-                backgroundColor: "#ffffff",
-                borderRadius: "16px",
-                padding: "32px 28px",
-                boxShadow: "0 2px 20px rgba(0,0,0,0.06)",
-                border: "1px solid #d2d2d7",
-              }}
+              className={`bg-white rounded-2xl border border-[#d2d2d7] shadow-[0_2px_20px_rgba(0,0,0,0.06)] px-7 py-8 transition-opacity duration-500 ${resultVisible ? "opacity-100" : "opacity-0"}`}
             >
-              {/* Probability display */}
-              <div
-                style={{
-                  textAlign: "center",
-                  paddingTop: "8px",
-                  marginBottom: "24px",
-                }}
-              >
+              {/* Model used badge */}
+              <div className="flex justify-center mb-4">
+                <span className={[
+                  "text-[11px] font-semibold px-3 py-1 rounded-full",
+                  modelRegistry[selectedModel]?.type === "Deep Learning"
+                    ? "bg-[#e8f0fe] text-[#0071e3]"
+                    : "bg-[#f0f7ef] text-[#1a7f37]",
+                ].join(" ")}>
+                  {result.model_used}
+                </span>
+              </div>
+
+              {/* Probability */}
+              <div className="text-center pt-1 mb-6">
                 <p
-                  style={{
-                    fontSize: "56px",
-                    fontWeight: 700,
-                    color: probabilityColor(result.default_probability),
-                    margin: "0 0 6px 0",
-                    letterSpacing: "-0.03em",
-                    lineHeight: 1,
-                  }}
+                  className="text-[56px] font-bold tracking-[-0.03em] leading-none mb-1.5"
+                  style={{ color: probabilityColor(result.default_probability) }}
                 >
                   {(result.default_probability * 100).toFixed(1)}%
                 </p>
-                <p
-                  style={{
-                    fontSize: "13px",
-                    color: "#6e6e73",
-                    margin: "0 0 14px 0",
-                  }}
-                >
-                  Default Probability
-                </p>
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                <p className="text-[13px] text-[#6e6e73] mb-3.5">Default Probability</p>
+                <div className="flex justify-center">
                   <RiskBadge risk={result.risk_level as "Low" | "Medium" | "High"} />
                 </div>
               </div>
 
-              {/* Divider */}
-              <div style={{ height: "1px", backgroundColor: "#f0f0f0", marginBottom: "16px" }} />
+              <div className="h-px bg-[#f0f0f0] mb-4" />
 
-              {/* Detail rows */}
-              <div style={{ marginBottom: "4px" }}>
-                <DetailRow
-                  label="Will Default"
-                  value={result.will_default ? "Yes" : "No"}
-                  valueColor={result.will_default ? "#cf222e" : "#1a7f37"}
-                />
-                <DetailRow
-                  label="Threshold Used"
-                  value={String(result.threshold_used)}
-                />
+              <div className="mb-4">
+                <DetailRow label="Will Default" value={result.will_default ? "Yes" : "No"} valueColor={result.will_default ? "#cf222e" : "#1a7f37"} />
+                <DetailRow label="Threshold Used" value={String(result.threshold_used)} />
                 <DetailRow
                   label="Risk Level"
                   value={result.risk_level}
-                  valueColor={
-                    result.risk_level === "High"
-                      ? "#cf222e"
-                      : result.risk_level === "Medium"
-                      ? "#b45309"
-                      : "#1a7f37"
-                  }
+                  valueColor={result.risk_level === "High" ? "#cf222e" : result.risk_level === "Medium" ? "#b45309" : "#1a7f37"}
                 />
               </div>
 
-              {/* Divider */}
-              <div
-                style={{
-                  height: "1px",
-                  backgroundColor: "#f0f0f0",
-                  margin: "16px 0",
-                }}
-              />
+              <div className="h-px bg-[#f0f0f0] mb-4" />
 
-              {/* Feature Impact */}
+              {/* Key predictors */}
               <div>
-                <p
-                  style={{
-                    fontSize: "14px",
-                    fontWeight: 600,
-                    color: "#1d1d1f",
-                    margin: "0 0 12px 0",
-                  }}
-                >
-                  What drove this?
-                </p>
-                <div
-                  style={{
-                    backgroundColor: "#f5f5f7",
-                    borderRadius: "12px",
-                    padding: "16px",
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "10px",
-                  }}
-                >
-                  {topFeatures.map((feature) => (
-                    <div
-                      key={feature.label}
-                      style={{
-                        display: "flex",
-                        alignItems: "flex-start",
-                        gap: "10px",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "8px",
-                          height: "8px",
-                          borderRadius: "50%",
-                          backgroundColor: "#0071e3",
-                          flexShrink: 0,
-                          marginTop: "5px",
-                        }}
-                      />
-                      <div>
-                        <span
-                          style={{
-                            fontSize: "13px",
-                            fontWeight: 600,
-                            color: "#1d1d1f",
-                            fontFamily: "monospace",
-                          }}
-                        >
-                          {feature.label}
-                        </span>
-                        <span
-                          style={{
-                            fontSize: "12px",
-                            color: "#6e6e73",
-                            marginLeft: "8px",
-                          }}
-                        >
-                          {feature.description}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <p className="text-[14px] font-semibold text-[#1d1d1f] mb-3">Key Predictors</p>
+                <div className="bg-[#f5f5f7] rounded-xl p-4 flex flex-col gap-2.5">
+                  {topFeatures.length === 0
+                    ? Array.from({ length: 5 }).map((_, i) => (
+                        <div key={i} className="flex items-start gap-2.5 animate-pulse">
+                          <div className="w-2 h-2 rounded-full bg-[#d2d2d7] shrink-0 mt-1" />
+                          <div className="h-4 bg-[#d2d2d7] rounded w-3/4" />
+                        </div>
+                      ))
+                    : topFeatures.map((feature) => (
+                        <div key={feature} className="flex items-start gap-2.5">
+                          <div className="w-2 h-2 rounded-full bg-[#0071e3] shrink-0 mt-1.5" />
+                          <div>
+                            <span className="text-[13px] font-semibold text-[#1d1d1f] font-mono">{feature}</span>
+                            <span className="text-[12px] text-[#6e6e73] ml-2">{FEATURE_DESCRIPTIONS[feature] ?? ""}</span>
+                          </div>
+                        </div>
+                      ))}
                 </div>
-                <p
-                  style={{
-                    fontSize: "12px",
-                    color: "#6e6e73",
-                    textAlign: "center",
-                    margin: "14px 0 0 0",
-                    lineHeight: 1.5,
-                  }}
-                >
-                  Threshold set at 0.35 — tuned to maximize recall for default detection
+                <p className="text-[12px] text-[#6e6e73] text-center mt-3.5 leading-relaxed">
+                  Threshold set at {result.threshold_used} — tuned to maximize recall for default detection
                 </p>
               </div>
             </div>
           )}
         </div>
       </div>
-
-      {/* ── Global styles ── */}
-      <style>{`
-        .predict-submit-btn:hover:not(:disabled) {
-          background-color: #0077ed !important;
-        }
-        .predict-spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255,255,255,0.35);
-          border-top-color: #ffffff;
-          border-radius: 50%;
-          animation: predict-spin 0.7s linear infinite;
-          flex-shrink: 0;
-        }
-        @keyframes predict-spin {
-          to { transform: rotate(360deg); }
-        }
-      `}</style>
     </div>
   );
 }

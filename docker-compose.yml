@@ -1,36 +1,29 @@
 services:
   postgres:
-    image: postgres:15
+    image: postgres:16-alpine
     environment:
       POSTGRES_USER: mlflow
-      POSTGRES_PASSWORD: mlflow_secret
-      POSTGRES_DB: mlflow_db
-    ports:
-      - "5434:5432"
+      POSTGRES_PASSWORD: mlflow
+      POSTGRES_DB: mlflow
     volumes:
-      - pgdata:/var/lib/postgresql/data
-   
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U mlflow"]
+      interval: 5s
+      retries: 5
 
   mlflow:
-    build: 
-     context: ./mlflow
-    depends_on:
-      - postgres
-    environment:
-      MLFLOW_BACKEND_STORE_URI: postgresql://mlflow:mlflow_secret@postgres:5432/mlflow_db
-      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlflow/artifacts
+    build: ./mlflow
     ports:
       - "5001:5000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      MLFLOW_BACKEND_STORE_URI: postgresql://mlflow:mlflow@postgres:5432/mlflow
+      MLFLOW_DEFAULT_ARTIFACT_ROOT: /mlruns
     volumes:
-      - mlflow_artifacts:/mlflow/artifacts
-    command: >
-      mlflow server
-        --backend-store-uri postgresql://mlflow:mlflow_secret@postgres:5432/mlflow_db
-        --default-artifact-root /mlflow/artifacts
-        --host 0.0.0.0
-        --port 5000
-        --allowed-hosts '*'
-        --cors-allowed-origins '*'
+      - mlflow_artifacts:/mlruns
 
   backend:
     build: ./backend
@@ -41,7 +34,8 @@ services:
     environment:
       MLFLOW_TRACKING_URI: http://mlflow:5000
     volumes:
-      - ./model:/app/model   # mounts your local model/ folder into the container
+      - ./model:/app/model
+      - ./backend/app:/app/app
 
   frontend:
     build: ./frontend
@@ -53,5 +47,5 @@ services:
       NEXT_PUBLIC_API_URL: http://localhost:8000
 
 volumes:
-  pgdata:
+  postgres_data:
   mlflow_artifacts:

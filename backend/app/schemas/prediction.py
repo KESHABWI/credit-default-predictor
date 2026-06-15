@@ -5,6 +5,7 @@ class PredictionRequest(BaseModel):
     model_config = ConfigDict(
         json_schema_extra={
             "example": {
+                "model": "simple_mlp",
                 "LIMIT_BAL": 200000.0,
                 "SEX": 2,
                 "EDUCATION": 2,
@@ -32,6 +33,8 @@ class PredictionRequest(BaseModel):
         }
     )
 
+    model: str = "simple_mlp"
+
     LIMIT_BAL: float
     SEX: int
     EDUCATION: int
@@ -57,9 +60,9 @@ class PredictionRequest(BaseModel):
     PAY_AMT6: float
 
 
-
 class PredictionResponse(BaseModel):
     default_probability: float
     will_default: bool
     risk_level: str  # "Low" | "Medium" | "High"
     threshold_used: float
+    model_used: str
