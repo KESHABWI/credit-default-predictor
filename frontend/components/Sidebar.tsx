@@ -8,6 +8,7 @@ import {
   BarChart2,
   FlaskConical,
   Zap,
+  Presentation,
 } from "lucide-react";
 
 const navItems = [
@@ -15,6 +16,7 @@ const navItems = [
   { href: "/eda", icon: BarChart2, label: "Data Analysis" },
   { href: "/experiments", icon: FlaskConical, label: "Experiments" },
   { href: "/predict", icon: Zap, label: "Predict" },
+  { href: "/presentation", icon: Presentation, label: "Presentation" },
 ];
 
 export default function Sidebar() {

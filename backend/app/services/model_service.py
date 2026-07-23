@@ -36,14 +36,7 @@ MODEL_REGISTRY: dict[str, dict] = {
         "threshold": 0.55,
         "metrics": {"roc_auc": 0.7666, "recall": 0.8499, "precision": 0.3016, "f1": 0.4452},
     },
-    "complex_mlp": {
-        "display_name": "ComplexMLP",
-        "type": "Deep Learning",
-        "file": MODELS_DL_DIR / "ComplexMLP_tuned.pt",
-        "framework": "pytorch",
-        "threshold": 0.61,
-        "metrics": {"roc_auc": 0.7148, "recall": 0.6591, "precision": 0.3553, "f1": 0.4617},
-    },
+
     "lightgbm": {
         "display_name": "LightGBM",
         "type": "Machine Learning",
@@ -240,8 +233,7 @@ class ModelService:
             if not path.exists():
                 continue
             if meta["framework"] == "pytorch":
-                loader = _load_complex_mlp if key == "complex_mlp" else _load_simple_mlp
-                model, threshold, feature_cols = loader(path)
+                model, threshold, feature_cols = _load_simple_mlp(path)
                 self._models[key] = model
                 self._thresholds[key] = threshold
                 self._feature_cols[key] = feature_cols

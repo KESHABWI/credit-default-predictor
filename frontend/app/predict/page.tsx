@@ -69,11 +69,26 @@ const PAY_AMT_FIELDS = [
   { key: "PAY_AMT6" as const, month: "Apr" },
 ];
 
+const PRESETS = {
+  healthy: {
+    LIMIT_BAL: "250000", SEX: "2", EDUCATION: "1", MARRIAGE: "2", AGE: "35",
+    PAY_0: "-1", PAY_2: "-1", PAY_3: "-1", PAY_4: "-1", PAY_5: "-1", PAY_6: "-1",
+    BILL_AMT1: "12000", BILL_AMT2: "8000", BILL_AMT3: "5000", BILL_AMT4: "3000", BILL_AMT5: "2000", BILL_AMT6: "1000",
+    PAY_AMT1: "12000", PAY_AMT2: "8000", PAY_AMT3: "5000", PAY_AMT4: "3000", PAY_AMT5: "2000", PAY_AMT6: "1000",
+  },
+  imbalanced_delay: {
+    LIMIT_BAL: "20000", SEX: "1", EDUCATION: "3", MARRIAGE: "1", AGE: "24",
+    PAY_0: "2", PAY_2: "2", PAY_3: "2", PAY_4: "2", PAY_5: "0", PAY_6: "0",
+    BILL_AMT1: "19500", BILL_AMT2: "19200", BILL_AMT3: "18900", BILL_AMT4: "18000", BILL_AMT5: "15000", BILL_AMT6: "12000",
+    PAY_AMT1: "0", PAY_AMT2: "0", PAY_AMT3: "500", PAY_AMT4: "1000", PAY_AMT5: "3000", PAY_AMT6: "2000",
+  }
+};
+
 const initialFormData = {
-  LIMIT_BAL: "", SEX: "2", EDUCATION: "2", MARRIAGE: "2", AGE: "",
-  PAY_0: "-1", PAY_2: "-1", PAY_3: "-1", PAY_4: "-1", PAY_5: "-1", PAY_6: "-1",
-  BILL_AMT1: "", BILL_AMT2: "", BILL_AMT3: "", BILL_AMT4: "", BILL_AMT5: "", BILL_AMT6: "",
-  PAY_AMT1: "", PAY_AMT2: "", PAY_AMT3: "", PAY_AMT4: "", PAY_AMT5: "", PAY_AMT6: "",
+  LIMIT_BAL: "150000", SEX: "2", EDUCATION: "2", MARRIAGE: "2", AGE: "30",
+  PAY_0: "0", PAY_2: "0", PAY_3: "0", PAY_4: "0", PAY_5: "0", PAY_6: "0",
+  BILL_AMT1: "20000", BILL_AMT2: "18000", BILL_AMT3: "17000", BILL_AMT4: "15000", BILL_AMT5: "14000", BILL_AMT6: "13000",
+  PAY_AMT1: "1500", PAY_AMT2: "1500", PAY_AMT3: "1000", PAY_AMT4: "1000", PAY_AMT5: "1000", PAY_AMT6: "1000",
 };
 
 type FormData = typeof initialFormData;
@@ -413,7 +428,35 @@ export default function PredictPage() {
 
             {/* ── Client Profile ── */}
             <SectionCard>
-              <SectionHeader label="Client Profile" />
+              <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-5 border-b border-[#f0f0f0] pb-4">
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] font-bold text-[#6e6e73] uppercase tracking-[0.1em]">Client Profile</span>
+                </div>
+                <div className="flex gap-2">
+                  <span className="text-[11px] text-[#6e6e73] font-medium self-center mr-1">Presets:</span>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(PRESETS.healthy)}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#eafaf1] text-[#1a7f37] border border-[#34c759]/30 hover:bg-[#c3e8bd] transition-all cursor-pointer"
+                  >
+                    Low Risk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(PRESETS.imbalanced_delay)}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#fff0f0] text-[#cf222e] border border-[#ff3b30]/30 hover:bg-[#fbc4b6] transition-all cursor-pointer"
+                  >
+                    High Risk
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFormData(initialFormData)}
+                    className="text-[11px] font-semibold px-2.5 py-1 rounded bg-[#f5f5f7] text-[#6e6e73] border border-[#d2d2d7] hover:bg-[#e8e8ed] transition-all cursor-pointer"
+                  >
+                    Default
+                  </button>
+                </div>
+              </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <FieldLabel>
